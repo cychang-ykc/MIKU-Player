@@ -227,11 +227,25 @@ public sealed class Player
         return Load(Current, Math.Max(0, at), true);
     }
 
+    /// <summary>
+    /// Plays the queue's track at <paramref name="i"/> (a click in the queue). Forward, the tracks jumped over leave the
+    /// queue (they were not heard: 已播放 keeps only what was), as in Spotify; back, into what was played, nothing goes.
+    /// </summary>
     public Task JumpTo(int i)
     {
         lock (_lock)
         {
             if (i < 0 || i >= _queue.Count) return Task.CompletedTask;
+            int from = _index + 1, n = i - from;
+            if (n > 0)
+            {
+                foreach (var id in _queue.GetRange(from, n)) _unshuffled?.Remove(id);
+                _queue.RemoveRange(from, n);
+                // the Smart Playlist's part: after the jump moves up; jumped into, it starts at the track chosen
+                if (_continuedFrom >= i) _continuedFrom -= n;
+                else if (_continuedFrom >= from) _continuedFrom = from;
+                i = from;
+            }
             _index = i;
         }
         Engine.InvalidateNext();

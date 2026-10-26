@@ -106,8 +106,20 @@ class Player extends EventEmitter {
     this.persist(); this.changedQueue();
     return this.load(this.current, at > 0 ? at : 0, true);
   }
+  /**
+   * Plays the queue's track at i (a click in the queue). Forward, the tracks jumped over leave the queue (they were not
+   * heard: 已播放 keeps only what was), as in Spotify; back, into what was played, nothing goes.
+   */
   jumpTo(i) {
     if (i < 0 || i >= this.queue.length) return;
+    const from = this.index + 1, n = i - from;
+    if (n > 0) {
+      for (const id of this.queue.splice(from, n)) if (this.unshuffled) { const k = this.unshuffled.indexOf(id); if (k >= 0) this.unshuffled.splice(k, 1); }
+      // the Smart Playlist's part: after the jump moves up; jumped into, it starts at the track chosen
+      if (this.continuedFrom >= i) this.continuedFrom -= n;
+      else if (this.continuedFrom >= from) this.continuedFrom = from;
+      i = from;
+    }
     this.index = i;
     this.engine.invalidateNext(); this.persist(); this.changedQueue();
     return this.load(this.current, 0, true);
